@@ -1,0 +1,255 @@
+---
+title: "Risk of Diabetes- Statistical analysis of comorbidity and leading physiological and demographic factors"
+author: "Samriddhi Soni"
+date: "2023-12-15"
+output: html_document
+---
+
+# Loading relevant libraries
+```{r,message=FALSE, warning=FALSE}
+library("ggplot2")
+library("dplyr")
+library("caret")
+library("rpart")
+library("rpart.plot")
+library("randomForest")
+library("modelr")
+library("data.table")
+library("randomForest")
+library("corrplot")
+```
+
+
+# Loading data
+```{r,message=FALSE, warning=FALSE}
+data <- read.csv(file="C:/Users/ss6557/Desktop/Semester 3/ORLA-6541-Data Science for organization and leadership/Final Paper/data (1).csv/data_new.csv")
+data <- na.omit(data)
+data <- data[,-1]
+
+# Factor the variables
+data$Gender <- as.factor(data$Gender)
+data$Ethnicity <- as.factor(data$Ethnicity)
+```
+
+
+# Visualizations
+
+```{r}
+par(mfrow=c(2,2))
+#1
+ggplot(
+  data = data,
+  mapping = aes(x = Diabetes, y = Glycohemoglobin)
+) +
+  geom_point(aes(color = Diabetes)) +
+  labs(
+    x = "Diabetes", y = "Gylcohemoglobin",
+    color = "Diabetes", shape = "Diabetes"
+  ) 
+
+```
+
+
+# Ethnicity vs Diabetes
+```{r}
+ggplot(data, aes(x=Ethnicity, fill=Diabetes)) + geom_bar() + coord_flip()
+```
+
+# Age vs diabetes
+```{r}
+ggplot(data, 
+       aes(x = Age, 
+           color = Diabetes,
+           fill = Diabetes))+
+  geom_density(alpha = 0.3,
+               na.rm = TRUE)
+```
+
+
+#HCA Heatmaps
+
+```{r}
+library(hopach)
+library(ComplexHeatmap)
+library(circlize)
+suppressPackageStartupMessages(library(circlize))
+
+data_num <- data[,c(2,6,7,8,9,10,11)]
+data_scale <- scale(data_num)
+```
+
+
+## Clustering
+
+```{r}
+uncenter.dist <- function(m) {
+as.dist(as.matrix(distancematrix(m, d="cosangle")))
+}
+row.clus<-hclust(uncenter.dist(data_scale), method = "ave")
+col.clus<-hclust(uncenter.dist(t(data_scale)), method = "ave")
+
+suppressMessages(ht_main <- Heatmap(data_scale, cluster_rows=row.clus, cluster_columns=col.clus,row_title = "ID", column_title = "Covariates"))
+
+ht_diabetes<-Heatmap(data[,5], name = "Diagnosis",
+col = colorRamp2(c(FALSE,TRUE),c("white", "black")),
+heatmap_legend_param = list(at = c(0,1),
+labels = c("Pre-Diabetic", "Diabetic")),
+width = unit(0.5,"cm"))
+
+draw(ht_main+ht_diabetes, auto_adjust = FALSE)
+```
+
+
+```{r}
+data_num <- cbind(data$Diabetes, data_num)
+colnames(data_num) <- c("Diabetes","Age","Weight","BMI","Glycohemoglobin","Albumin","Blood_urea_nitrogen","Serum_Creatinine")
+```
+
+
+# Correlation plot
+```{r}
+
+corr <- cor(data_num)
+corrplot(corr)
+```
+
+
+## Splitting the data into training and testing set
+```{r}
+
+data$Diabetes <- as.factor(data$Diabetes)
+data_num$Diabetes <- as.factor(data_num$Diabetes)
+```
+
+```{r}
+set.seed(4321)
+
+# Split the data into training and testing set
+index <- createDataPartition(data_num$Diabetes, p=0.7, list = FALSE)
+train_dat <- data_num[index, ]
+test_dat <- data_num[-index, ]
+```
+
+# Logistic Regression
+
+```{r}
+library(pROC)
+
+logmodel <- glm(Diabetes~., data = train_dat, family = "binomial")
+summary(logmodel)
+
+predictions <- predict(logmodel, test_dat, type = "response")
+
+roc_curve <- roc(test_dat$Diabetes, predictions)
+auc_value <- auc(roc_curve)
+
+# Print AUC value
+cat("AUC:", auc_value, "\n")
+
+# Plot the ROC AUC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2, xlim=c(1,0))
+```
+
+# Confusion matrix and prediction accuracy
+```{r}
+predictions <- predict(logmodel, test_dat) %>% as.data.frame()
+colnames(predictions) <- c("Diabetes")
+predictions$Diabetes <- exp(predictions$Diabetes)
+head(predictions)
+
+
+# Create a confusion matrix
+predictions <- mutate(predictions,
+  Diabetes = as.factor(ifelse(predictions > 0.5, TRUE, FALSE))
+  ) %>%
+  select(Diabetes)
+
+# Confusion matrix
+confusionMatrix(predictions$Diabetes, test_dat$Diabetes)
+```
+
+
+# Decision tree and Random Forest
+```{r}
+library("caret")
+library("rpart")
+library("rpart.plot")
+library("randomForest")
+library("modelr")
+library("data.table")
+library("randomForest")
+```
+
+
+
+# Fitting decision tree without pruning
+```{r}
+dt_fit1 <- rpart(formula= train_dat$Diabetes~.,
+                 data=train_dat,
+                 method="class",
+                 control= rpart.control(minsplit=20,
+                                        cp=0,
+                                        xval=0),
+                 parms = list(split="gini"))
+rpart.plot(dt_fit1)
+```
+Overfitting- requires pruning
+
+# Cross validation for optimal value of cp
+```{r}
+dt_fit4 <- rpart(formula = train_dat$Diabetes~.,
+                 data = train_dat,
+                 method = "class", 
+                 control = rpart.control(minsplit = 20,
+                                         cp = 0,
+                                         xval = 10),
+                parms = list(split = "gini"))
+plotcp(dt_fit4)
+```
+
+0.005- too simplified model
+0.0031- overfitted(too complex model)
+0.0043- optimal 
+
+# Pruning the tree
+```{r}
+dt_fit2 <- rpart(formula= train_dat$Diabetes~.,
+                 data=train_dat,
+                 method="class",
+                 control= rpart.control(minsplit=20,
+                                        cp=0.0043,
+                                        xval=0),
+                 parms = list(split="gini"))
+rpart.plot(dt_fit2,
+           extra=8,
+           box.palette="RdBu")
+```
+
+# Printing the output of decision tree
+```{r}
+printcp(dt_fit2)
+varImp(dt_fit2)
+```
+
+
+
+# Checking the classificaion accuracy using the test data
+```{r}
+dt_pred <- predict(dt_fit2, test_dat) %>% as.data.frame()
+head(dt_pred)
+
+dt_pred <- mutate(dt_pred,
+  Diabetes = as.factor(ifelse(dt_pred$`FALSE` >= 0.5, FALSE, TRUE))
+  ) %>%
+  select(Diabetes)
+
+# Confusion matrix
+confusionMatrix(dt_pred$Diabetes, test_dat$Diabetes)
+```
+
+The output shows that the overall accuracy is around 91.6%, sensitivity is  
+97.37 % and specificity is 53.58% 
+
+
+
+
