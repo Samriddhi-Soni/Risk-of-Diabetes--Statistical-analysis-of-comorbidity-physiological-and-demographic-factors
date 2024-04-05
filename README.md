@@ -34,7 +34,7 @@ This project examines the risk of diagnosis of diabetes by analyzing physiologic
 
 ### R Markdown (Data transformation/predictive modelling/Visualization/Classificatin)
 
-* [Code/RMarkdown](https://github.com/Samriddhi-Soni/Unraveling-Diabetes-Risk-Insights-from-Health-Metrics-and-Demographics/blob/43e2a862191450745430be7ddf2d991bcad9a5fe/Code.Rmd)
+* [Code/RMarkdown](https://github.com/Samriddhi-Soni/Risk-of-Diabetes--Statistical-analysis-of-comorbidity-physiological-and-demographic-factors/blob/4a5397cbceee098703d9ef46a09e34274fe1e5ef/Code.Rmd)
 
 ### Questions
 
