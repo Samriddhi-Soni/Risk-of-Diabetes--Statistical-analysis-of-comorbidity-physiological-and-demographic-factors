@@ -41,5 +41,3 @@ This project examines the risk of diagnosis of diabetes by analyzing physiologic
 * If you have any queries or concerns (contact-ss6557@tc.columbia.edu)
 
 
-# Unveiling-Obesity-Dynamics-A-Machine-Learning-Approach-to-Socio-Economic-and-Demographic-Influences
-ML Exploration of Obesity: Investigating Socio-Economic and Demographic Influences using Classification Techniques. Analyzing connections between obesity diagnosis, limited economic opportunities, and demographic factors. Emphasizing the impact of housing crisis, low family income, and lack of health insurance. Integrating insights into physical health, exploring links with diabetes, heart diseases, and health habits. Leveraging machine learning classification methods for a nuanced understanding of demographic influences on obesity prevalence.
